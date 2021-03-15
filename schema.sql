@@ -1,6 +1,8 @@
-drop table if exists blah;
+drop table if exists book;
+drop table if exists author;
 
-create table blah (
-    id serial primary key,
-    is_deleted bool not null
-)
+create table author
+(
+    id   serial primary key,
+    books jsonb not null default '[]'
+);

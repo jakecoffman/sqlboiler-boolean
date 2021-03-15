@@ -4,7 +4,8 @@ import (
 	"context"
 	"database/sql"
 	_ "embed"
-	"github.com/jakecoffman/sqlboiler-boolean/models"
+	"encoding/json"
+	"github.com/jakecoffman/sqlboiler-tests/models"
 	_ "github.com/lib/pq"
 	"github.com/volatiletech/sqlboiler/v4/boil"
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
@@ -13,6 +14,8 @@ import (
 
 //go:embed schema.sql
 var schema string
+
+//go:generate sqlboiler --wipe psql
 
 func main() {
 	log.SetFlags(log.Lshortfile | log.LstdFlags)
@@ -28,21 +31,26 @@ func main() {
 		log.Fatal(err)
 	}
 
-	blah := &models.Blah{
-		ID:        1,
-		IsDeleted: false,
+	author := &models.Author{
+		ID:    1,
+		Books: []byte(`[{"title":"1984"}]`),
 	}
-	err = blah.Insert(context.Background(), db, boil.Infer())
+	err = author.Insert(context.Background(), db, boil.Infer())
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	_, err = models.Blahs(
-		qm.Where("id=$1", blah.ID),
-	).UpdateAll(context.Background(), db, models.M{"is_deleted": true})
+	v, err := models.Authors(
+		qm.Select("id"),
+		qm.Where("id=?", author.ID),
+	).One(context.Background(), db)
 	if err != nil {
-		// bug?
-		//models: unable to update all for blah: pq: column "is_deleted" is of type boolean but expression is of type integer
 		log.Fatal(err)
+	}
+
+	_, err = json.Marshal(v)
+	if err != nil {
+		// BUG: since Books is not selected it is blank which is invalid JSON.
+		log.Fatal("Couldn't marshal", err)
 	}
 }
